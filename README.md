@@ -1,6 +1,6 @@
 # InfraKit.K8S
 
-[![CircleCI](https://circleci.com/gh/docker/infrakit.aws.svg?style=shield&circle-token=e74dcf8c25027948307a7618041e1d1997ded50a)](https://circleci.com/gh/docker/infrakit.k8s)
+[![CircleCI](https://circleci.com/gh/FrenchBen/infrakit.k8s/tree/master.svg?style=svg)](https://circleci.com/gh/FrenchBen/infrakit.k8s/tree/master)
 
 [InfraKit](https://github.com/docker/infrakit) plugin for creating and managing resources in Kubernetes.
 
