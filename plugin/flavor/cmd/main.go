@@ -3,10 +3,10 @@ package main
 import (
 	"os"
 
+	"github.com/FrenchBen/infrakit.k8s/plugin/flavor"
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/infrakit/cli"
-	"github.com/docker/infrakit/plugin/flavor/kubernetes"
-	flavor_plugin "github.com/docker/infrakit/spi/http/flavor"
+	flavor_plugin "github.com/docker/infrakit/rpc/flavor"
 	"github.com/spf13/cobra"
 )
 
@@ -21,11 +21,12 @@ func main() {
 		Short: "Kubernetes flavor plugin",
 		Run: func(c *cobra.Command, args []string) {
 			cli.SetLogLevel(logLevel)
-			cli.RunPlugin(name, flavor_plugin.PluginServer(kubernetes.NewPlugin(sslDir)))
+			flavorPlugin := kubernetes.NewPlugin(sslDir)
+
+			cli.SetLogLevel(logLevel)
+			cli.RunPlugin(name, flavor_plugin.PluginServer(flavorPlugin))
 		},
 	}
-
-	cmd.AddCommand(cli.VersionCommand())
 
 	cmd.Flags().IntVar(&logLevel, "log", logLevel, "Logging level. 0 is least verbose. Max is 5")
 	cmd.Flags().StringVar(&name, "name", "flavor-kubernetes", "Plugin name to advertise for discovery")
@@ -35,6 +36,8 @@ func main() {
 		os.Exit(1)
 	}
 	cmd.Flags().StringVar(&sslDir, "ssl-dir", defaultDir, "Kubernetes SSL directory")
+
+	cmd.AddCommand(cli.VersionCommand())
 
 	err := cmd.Execute()
 	if err != nil {

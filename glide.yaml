@@ -1,0 +1,11 @@
+package: github.com/FrenchBen/infrakit.k8s
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/docker/infrakit
+  subpackages:
+  - cli
+  - plugin/group/types
+  - rpc/flavor
+  - spi/flavor
+  - spi/instance
+- package: github.com/spf13/cobra
