@@ -1,5 +1,5 @@
 # REPO
-REPO?=github.com/docker/infrakit.k8s
+REPO?=github.com/FrenchBen/infrakit.k8s
 
 # Set an output prefix, which is the local directory if not specified
 PREFIX?=$(shell pwd -L)
