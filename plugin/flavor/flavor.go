@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -70,10 +71,17 @@ func (k kubernetesFlavor) Prepare(
 	lines = append(lines, s.Init...)
 
 	instance.Init = strings.Join(lines, "\n")
-	if _, err := os.Stat(k.SslDir + "/kube-admin.tar"); os.IsNotExist(err) {
-		log.Errorf("SSL Directory does not exist: %v", k.SslDir)
-		return instance, err
+
+	if !path.IsAbs(k.SslDir) {
+		currentDir, _ := os.Getwd()
+		k.SslDir = path.Join(currentDir, k.SslDir)
 	}
+	erDir := os.MkdirAll(k.SslDir, os.ModePerm)
+	if erDir != nil {
+		log.Errorf("Couldn't create ssl dir: %v", erDir)
+	}
+
+	log.Infof("Using SSL dir: %s", k.SslDir)
 
 	// Only create the admin SSL if not exist:
 	if _, err := os.Stat(k.SslDir + "/kube-admin.tar"); os.IsNotExist(err) {
@@ -87,23 +95,28 @@ func (k kubernetesFlavor) Prepare(
 		}
 	}
 
-	// Generate kubeconfig file in tutorial folder
-	logicalID := string(*instance.LogicalID)
-	ipAddrs := []string{logicalID}
-	if s.Role == "controller" {
-		ipAddrs = append(ipAddrs, "10.3.0.1")
-	}
-	sslTar, err := provisionMachineSSL(k, "apiserver", "kube-apiserver-"+logicalID, ipAddrs)
+	// Generate ssl file for each controller/worker (each controllers gets same cert)
+	if s.Role != "" {
+		logicalID := string(*instance.LogicalID)
+		ipAddrs := []string{logicalID}
+		if s.Role == "controller" {
+			ipAddrs = append(ipAddrs, "10.3.0.1")
+		}
+		sslTar, err := provisionMachineSSL(k.SslDir, "apiserver", "kube-apiserver-"+logicalID, ipAddrs)
+		if err != nil {
+			log.Errorf("Couldn't generate SSL for %s", "kube-apiserver-"+logicalID)
+		}
+		var properties map[string]interface{}
 
-	var properties map[string]interface{}
-
-	if err := json.Unmarshal(*instance.Properties, &properties); err != nil {
-		return instance, err
+		if err := json.Unmarshal(*instance.Properties, &properties); err != nil {
+			log.Errorf("Couldn't unmarshall JSON: %v\n", err)
+			return instance, err
+		}
+		properties["SSL"] = sslTar
+		data, err := json.Marshal(properties)
+		raw := json.RawMessage(string(data))
+		instance.Properties = &raw
 	}
-	properties["SSL"] = sslTar
-	data, err := json.Marshal(properties)
-	raw := json.RawMessage(string(data))
-	instance.Properties = &raw
 
 	// Append tags
 	for k, v := range s.Tags {
@@ -115,13 +128,13 @@ func (k kubernetesFlavor) Prepare(
 	return instance, nil
 }
 
-func provisionMachineSSL(k kubernetesFlavor, certBaseName string, cn string, ipAddrs []string) (string, error) {
-	tarFile := fmt.Sprintf("%s/%s.tar", k.SslDir, cn)
+func provisionMachineSSL(sslDir string, certBaseName string, cn string, ipAddrs []string) (string, error) {
+	tarFile := fmt.Sprintf("%s/%s.tar", sslDir, cn)
 	ipString := ""
 	for i, ip := range ipAddrs {
 		ipString = ipString + fmt.Sprintf("IP.%d=%s,", i+1, ip)
 	}
-	if err := execScript("ssl/init-ssl", k.SslDir, certBaseName, cn, ipString); err != nil {
+	if err := execScript("ssl/init-ssl", sslDir, certBaseName, cn, ipString); err != nil {
 		return "", err
 	}
 	return tarFile, nil
